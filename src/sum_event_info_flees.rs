@@ -9,12 +9,15 @@ pub fn sum_event_info_flees<'a>(
     buffer: &'a FixedCircularBuffer<Uuid>,
     map: &HashMap<Uuid, EventInfo>,
 ) -> (u64, u64) {
-    let (sum_flee_x, sum_flee_y) = buffer
-        .into_iter()
-        .filter_map(|uuid| map.get(&uuid))
-        .fold((0, 0), |(acc_x, acc_y), event_info| {
-            (acc_x + event_info.flee_x, acc_y + event_info.flee_y)
-        });
+    let (sum_flee_x, sum_flee_y) = buffer.into_iter().filter_map(|uuid| map.get(&uuid)).fold(
+        (0, 0),
+        |(acc_x, acc_y), event_info| {
+            (
+                acc_x + event_info.flee_x as u64,
+                acc_y + event_info.flee_y as u64,
+            )
+        },
+    );
     (sum_flee_x, sum_flee_y)
 }
 

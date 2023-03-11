@@ -1,4 +1,5 @@
-fn average_coordinates_toroidal(x1: u64, y1: u64, x2: u64, y2: u64) -> (u64, u64) {
+// TODO: this might not even get used and become deleted
+pub fn average_coordinates_toroidal(x1: u64, y1: u64, x2: u64, y2: u64) -> (u64, u64) {
     let size = std::u64::MAX;
     let dx = if x1 < x2 { x2 - x1 } else { x1 - x2 };
     let dy = if y1 < y2 { y2 - y1 } else { y1 - y2 };

@@ -9,20 +9,21 @@ pub fn sum_event_info_follows<'a>(
     buffer: &'a FixedCircularBuffer<Uuid>,
     map: &HashMap<Uuid, EventInfo>,
 ) -> (u64, u64) {
-    let (sum_follow_x, sum_follow_y) = buffer
-        .into_iter()
-        .filter_map(|uuid| map.get(&uuid))
-        .fold((0, 0), |(acc_x, acc_y), event_info| {
-            (acc_x + event_info.follow_x, acc_y + event_info.follow_y)
-        });
+    let (sum_follow_x, sum_follow_y) = buffer.into_iter().filter_map(|uuid| map.get(&uuid)).fold(
+        (0, 0),
+        |(acc_x, acc_y), event_info| {
+            (
+                acc_x + event_info.follow_x as u64,
+                acc_y + event_info.follow_y as u64,
+            )
+        },
+    );
     (sum_follow_x, sum_follow_y)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::hash_map::RandomState;
-    use std::iter::FromIterator;
 
     #[test]
     fn test_sum_event_info_follows_normal() {
