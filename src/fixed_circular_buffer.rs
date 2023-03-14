@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 pub struct FixedCircularBuffer<T> {
     buffer: VecDeque<T>,
-    capacity: usize,
+    pub capacity: usize,
 }
 
 impl<T> FixedCircularBuffer<T> {

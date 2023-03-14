@@ -1,7 +1,6 @@
 use crate::fixed_circular_buffer::FixedCircularBuffer;
 use crate::furthest_coordinates_toroidal::furthest_coordinates_toroidal;
-use crate::sum_event_info_flees::sum_event_info_flees;
-use crate::sum_event_info_follows::sum_event_info_follows;
+use crate::toroidal_rolling_flee_average::toroidal_rolling_flee_average;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -17,55 +16,37 @@ pub struct EventInfo {
     pub flee_y: u32,
 }
 
+// TODO: fix tests since in the middle of swapping out average with rolling toroidal average still being written
 fn process_event(
     event: &Event,
     buffer: &mut FixedCircularBuffer<Uuid>,
     map: &mut HashMap<Uuid, EventInfo>,
+    previous_flee_average: &Option<(u32, u32)>,
 ) -> Result<(), Uuid> {
-    let sum_flee_coordinates = sum_event_info_flees(buffer, map);
-    let sum_follow_coordinates = sum_event_info_follows(buffer, map);
+    let sum_flee_coordinates =
+        toroidal_rolling_flee_average(map, buffer, previous_flee_average).unwrap();
 
     if map.contains_key(&event.id) {
         // TODO: shift incoming event follow towards flees
         // TODO: shift incoming event flee away from follows
         println!("Event is in hashmap!");
     } else {
-        let buffer_length = std::cmp::max(buffer.len() as u64, 1);
-        let (flee_anti_x, flee_anti_y) = furthest_coordinates_toroidal(
-            (sum_flee_coordinates.0 / buffer_length) as u32,
-            (sum_flee_coordinates.1 / buffer_length) as u32,
-        );
-        let (follow_anti_x, follow_anti_y) = furthest_coordinates_toroidal(
-            (sum_follow_coordinates.0 / buffer_length) as u32,
-            (sum_follow_coordinates.1 / buffer_length) as u32,
-        );
+        let (flee_anti_x, flee_anti_y) =
+            furthest_coordinates_toroidal(sum_flee_coordinates.0, sum_flee_coordinates.1);
 
         // TODO: fix broken test because you can't just sum and then take the average in toroidal space
         println!(
-            "sums {:?} {:?} {:?} {:?}",
-            sum_flee_coordinates.0,
-            sum_flee_coordinates.1,
-            sum_follow_coordinates.0,
-            sum_follow_coordinates.1
+            "sums {:?} {:?}",
+            sum_flee_coordinates.0, sum_flee_coordinates.1,
         );
-        println!(
-            "divided {:?} {:?} {:?} {:?}",
-            (sum_flee_coordinates.0 / buffer_length),
-            (sum_flee_coordinates.1 / buffer_length),
-            (sum_follow_coordinates.0 / buffer_length),
-            (sum_follow_coordinates.1 / buffer_length)
-        );
-        println!(
-            "opposites {:?} {:?} {:?} {:?}",
-            flee_anti_x, flee_anti_y, follow_anti_x, follow_anti_y
-        );
+        println!("opposites {:?} {:?}", flee_anti_x, flee_anti_y);
 
         // The idea is to place initial points far from each other and continue some consistent rule.
         let event_info = EventInfo {
             follow_x: flee_anti_x,
             follow_y: flee_anti_y,
-            flee_x: follow_anti_x,
-            flee_y: follow_anti_y,
+            flee_x: 0,
+            flee_y: 0,
         };
         map.insert(event.id, event_info);
     }
@@ -90,7 +71,7 @@ mod tests {
             flee_x: u32::MAX / 2,
             flee_y: u32::MAX / 2,
         };
-        process_event(&event, &mut buffer, &mut map);
+        process_event(&event, &mut buffer, &mut map, &Some((0, 0)));
 
         assert_eq!(buffer.front(), Some(&event.id));
         assert_eq!(buffer.len(), 1);
@@ -122,8 +103,8 @@ mod tests {
             flee_x: u32::MAX - 1,
             flee_y: u32::MAX - 1,
         };
-        process_event(&event1, &mut buffer, &mut map);
-        process_event(&event2, &mut buffer, &mut map);
+        process_event(&event1, &mut buffer, &mut map, &Some((0, 0)));
+        process_event(&event2, &mut buffer, &mut map, &Some((0, 0)));
 
         assert_eq!(buffer.len(), 2);
         assert_eq!(
@@ -156,10 +137,10 @@ mod tests {
         let event1 = Event {
             id: Uuid::parse_str("fa84077a-7a27-48cf-b6f4-0becc82b09ac").unwrap(),
         };
-        process_event(&event1, &mut buffer, &mut map).unwrap();
+        process_event(&event1, &mut buffer, &mut map, &Some((0, 0))).unwrap();
 
         // check if the entry is updated correctly by calling process_event again
-        process_event(&event1, &mut buffer, &mut map).unwrap();
+        process_event(&event1, &mut buffer, &mut map, &Some((0, 0))).unwrap();
 
         // check that the buffer still inserts the id
         assert_eq!(
@@ -212,7 +193,7 @@ mod tests {
         let event_3 = Event { id: id_3 };
 
         // Call the process_event function to add the third event
-        let result = process_event(&event_3, &mut buffer, &mut map);
+        let result = process_event(&event_3, &mut buffer, &mut map, &Some((0, 0)));
         assert!(result.is_ok());
 
         // Check that the third event is now in the buffer
